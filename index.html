@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCP FREEZER - ระบบบันทึกการใช้งานตู้แช่แข็งออนไลน์</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&family=Prompt:wght@300;400;700&family=Noto+Sans+Thai:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Kanit', 'Prompt', 'Noto Sans Thai', sans-serif;
+            background-color: #e9ebe1; /* Web app background color */
+        }
+        .header-gradient {
+            background: linear-gradient(to right, #30cfd0, #330867); /* Header background gradient */
+        }
+        .blinking-text {
+            animation: blinker 1s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+        /* Hide scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        body {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        /* Modal specific styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 2rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            width: 90%; /* Responsive width */
+            max-width: 500px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            position: relative;
+        }
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            color: #aaa;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Chart container styling */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content text-center p-8 rounded-xl shadow-lg relative bg-white">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">
+                <span class="header-gradient bg-clip-text text-transparent">TCP FREEZER</span>
+                <br>
+                <span class="text-xl font-normal text-gray-600">ระบบบันทึกการใช้งานตู้แช่แข็งออนไลน์</span>
+            </h2>
+            <div class="mb-4">
+                <input type="email" id="loginEmail" placeholder="อีเมล" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-6">
+                <input type="password" id="loginStaffCode" placeholder="รหัสพนักงาน" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button id="loginButton" class="w-full py-3 rounded-lg text-white font-semibold bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-300 ease-in-out">
+                เข้าสู่ระบบ
+            </button>
+            <p id="loginMessage" class="mt-4 text-red-500 text-sm"></p>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="app" class="flex-1 hidden flex flex-col">
+        <!-- Header -->
+        <header class="header-gradient text-white p-4 shadow-lg flex items-center justify-between">
+            <h1 class="text-3xl font-bold">TCP FREEZER</h1>
+            <div class="flex items-center space-x-4">
+                <span id="loggedInUser" class="text-lg">ผู้ใช้งาน: Admin</span>
+                <button id="logoutButton" class="bg-purple-700 hover:bg-purple-800 text-white py-2 px-4 rounded-md shadow transition duration-300 ease-in-out">
+                    ออกจากระบบ
+                </button>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="bg-white shadow-md p-2 flex justify-center space-x-6 sticky top-0 z-10">
+            <button id="navHome" class="nav-button px-6 py-3 rounded-xl text-lg font-semibold text-gray-700 hover:bg-blue-100 hover:text-blue-700 transition duration-300 ease-in-out">
+                หน้าแรก 🏠
+            </button>
+            <button id="navDailyLog" class="nav-button px-6 py-3 rounded-xl text-lg font-semibold text-gray-700 hover:bg-blue-100 hover:text-blue-700 transition duration-300 ease-in-out">
+                บันทึกฟรีซประจำวัน ❄️
+            </button>
+            <button id="navOverview" class="nav-button px-6 py-3 rounded-xl text-lg font-semibold text-gray-700 hover:bg-blue-100 hover:text-blue-700 transition duration-300 ease-in-out">
+                สรุปภาพรวม 📊
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="appContent" class="flex-1 p-6 overflow-y-auto">
+            <!-- Content will be loaded dynamically here -->
+        </main>
+
+        <!-- Action Modals (for Daily Freeze Log) -->
+        <div id="actionModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" id="closeModalButton">&times;</span>
+                <h3 id="modalTitle" class="text-2xl font-bold mb-4 text-gray-800"></h3>
+                <form id="actionForm" class="space-y-4">
+                    <input type="hidden" id="modalFreezerId">
+                    <input type="hidden" id="modalFreezerStatus">
+
+                    <!-- Fields for "พร้อมใช้งาน" (Ready to Use) -->
+                    <div id="readyToUseFields" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">วันที่ฟรีซ</label>
+                            <input type="text" id="readyFreezeDate" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label for="readyMeterStart" class="block text-gray-700 font-semibold mb-1">Meter เริ่ม</label>
+                            <input type="number" id="readyMeterStart" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">พนักงาน</label>
+                            <input type="text" id="readyEmployee" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">วัน/เวลาคาดว่าจะเสร็จ</label>
+                            <input type="text" id="readyEstimatedCompletion" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <button type="button" id="startButton" class="w-full py-3 rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700 transition duration-300 ease-in-out">เริ่มฟรีซ</button>
+                    </div>
+
+                    <!-- Fields for "กำลัง Freeze" (Freezing) -->
+                    <div id="freezingFields" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">วันที่ฟรีซ</label>
+                            <input type="text" id="freezingFreezeDate" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">Meter เริ่ม</label>
+                            <input type="text" id="freezingMeterStart" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label for="freezingMeterEnd" class="block text-gray-700 font-semibold mb-1">Meter สิ้นสุด</label>
+                            <input type="number" id="freezingMeterEnd" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">พนักงาน</label>
+                            <input type="text" id="freezingEmployee" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">วัน/เวลาคาดว่าจะเสร็จ</label>
+                            <input type="text" id="freezingEstimatedCompletion" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <button type="button" id="stopButton" class="w-full py-3 rounded-lg text-white font-semibold bg-red-600 hover:bg-red-700 transition duration-300 ease-in-out">หยุดเครื่อง</button>
+                    </div>
+
+                    <!-- Fields for "มีสินค้าในตู้" (Items in Freezer) -->
+                    <div id="itemsInFreezerFields" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">วันที่ฟรีซ</label>
+                            <input type="text" id="itemsFreezeDate" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">Meter เริ่ม</label>
+                            <input type="text" id="itemsMeterStart" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">Meter สิ้นสุด</label>
+                            <input type="text" id="itemsMeterEnd" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">วัน/เวลาคาดว่าจะเสร็จ</label>
+                            <input type="text" id="itemsEstimatedCompletion" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-1">พนักงาน</label>
+                            <input type="text" id="itemsEmployee" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div id="refreezeNotesContainer" class="hidden">
+                            <label for="refreezeNotes" class="block text-gray-700 font-semibold mb-1">หมายเหตุ (รีฟรีซ)</label>
+                            <textarea id="refreezeNotes" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div class="flex space-x-4">
+                            <button type="button" id="clearButton" class="flex-1 py-3 rounded-lg text-white font-semibold bg-blue-600 hover:bg-blue-700 transition duration-300 ease-in-out">เคลียร์ตู้</button>
+                            <button type="button" id="refreezeButton" class="flex-1 py-3 rounded-lg text-white font-semibold bg-purple-600 hover:bg-purple-700 transition duration-300 ease-in-out">รีฟรีซ</button>
+                        </div>
+                    </div>
+                    <button type="button" id="confirmOperationButton" class="w-full py-3 rounded-lg text-white font-semibold bg-indigo-600 hover:bg-indigo-700 transition duration-300 ease-in-out mt-4 hidden">
+                        ยืนยันการทำงาน
+                    </button>
+                    <p id="modalMessage" class="mt-4 text-red-500 text-sm"></p>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-200 text-gray-700 p-4 text-center text-sm shadow-inner mt-auto">
+        พัฒนาโดย Phichamon Worachan | T All Intelligence Co., Ltd. ระบบบันทึกการใช้งานตู้แช่แข็งออนไลน์ &copy; 2025
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Global variables from Canvas environment (if available)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Firebase Initialization (as per Canvas environment requirements, even if not primary DB)
+        // Ensure to include Firebase SDKs if this part is active in a true Firebase project
+        // For this Google Sheet based app, this section is minimal and primarily for environment compliance.
+        /*
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        let app, auth, db, userId;
+
+        window.onload = async function() {
+            try {
+                if (Object.keys(firebaseConfig).length > 0) {
+                    app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+
+                    // Sign in with custom token or anonymously
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            // console.log("Firebase user ID:", userId);
+                            // Proceed with app initialization after Firebase auth is ready
+                            initializeFreezerApp();
+                        } else {
+                            // console.log("No Firebase user is signed in.");
+                            // Fallback for anonymous or no auth if necessary, but ideally
+                            // Firebase auth should be ready before full app functions.
+                            initializeFreezerApp(); // Still initialize app to show login
+                        }
+                    });
+                } else {
+                    console.warn("Firebase config not found. Proceeding without Firebase.");
+                    initializeFreezerApp(); // Initialize app directly if no Firebase
+                }
+            } catch (error) {
+                console.error("Firebase initialization or authentication failed:", error);
+                initializeFreezerApp(); // Attempt to initialize app even on Firebase error
+            }
+        };
+        */
+
+        // For this specific request, we will rely on Google Sheets for authentication and data.
+        // We'll proceed with app initialization directly.
+        document.addEventListener('DOMContentLoaded', initializeFreezerApp);
+
+
+        // --- Global App State ---
+        let currentUser = null; // { email: "user@example.com", name: "ผู้ใช้งาน" }
+        let freezers = []; // Array of freezer objects
+        let freezeHistory = []; // Array of freeze history objects
+        let allUsers = []; // List of all registered users (for login validation)
+
+        const GOOGLE_APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwI2jQDSjDcn-Qp7EFeZ8NRiDSznG0-zcC63rSq-kYC9PSDJj1ctWJMX8zurRGUkA/exec';
+        let currentChartInstances = {}; // To store Chart.js instances for destruction
+
+        // --- DOM Elements ---
+        const loginModal = document.getElementById('loginModal');
+        const loginEmailInput = document.getElementById('loginEmail');
+        const loginStaffCodeInput = document.getElementById('loginStaffCode');
+        const loginButton = document.getElementById('loginButton');
+        const loginMessage = document.getElementById('loginMessage');
+
+        const appContainer = document.getElementById('app');
+        const loggedInUserSpan = document.getElementById('loggedInUser');
+        const logoutButton = document.getElementById('logoutButton');
+
+        const navHomeButton = document.getElementById('navHome');
+        const navDailyLogButton = document.getElementById('navDailyLog');
+        const navOverviewButton = document.getElementById('navOverview');
+        const appContent = document.getElementById('appContent');
+
+        const actionModal = document.getElementById('actionModal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalFreezerId = document.getElementById('modalFreezerId');
+        const modalFreezerStatus = document.getElementById('modalFreezerStatus');
+        const confirmOperationButton = document.getElementById('confirmOperationButton');
+        const modalMessage = document.getElementById('modalMessage');
+
+        // Modal fields for "พร้อมใช้งาน"
+        const readyToUseFields = document.getElementById('readyToUseFields');
+        const readyFreezeDate = document.getElementById('readyFreezeDate');
+        const readyMeterStart = document.getElementById('readyMeterStart');
+        const readyEmployee = document.getElementById('readyEmployee');
+        const readyEstimatedCompletion = document.getElementById('readyEstimatedCompletion');
+        const startButton = document.getElementById('startButton');
+
+        // Modal fields for "กำลัง Freeze"
+        const freezingFields = document.getElementById('freezingFields');
+        const freezingFreezeDate = document.getElementById('freezingFreezeDate');
+        const freezingMeterStart = document.getElementById('freezingMeterStart');
+        const freezingMeterEnd = document.getElementById('freezingMeterEnd');
+        const freezingEmployee = document.getElementById('freezingEmployee');
+        const freezingEstimatedCompletion = document.getElementById('freezingEstimatedCompletion');
+        const stopButton = document.getElementById('stopButton');
+
+        // Modal fields for "มีสินค้าในตู้"
+        const itemsInFreezerFields = document.getElementById('itemsInFreezerFields');
+        const itemsFreezeDate = document.getElementById('itemsFreezeDate');
+        const itemsMeterStart = document.getElementById('itemsMeterStart');
+        const itemsMeterEnd = document.getElementById('itemsMeterEnd');
+        const itemsEstimatedCompletion = document.getElementById('itemsEstimatedCompletion');
+        const itemsEmployee = document.getElementById('itemsEmployee');
+        const refreezeNotesContainer = document.getElementById('refreezeNotesContainer');
+        const refreezeNotes = document.getElementById('refreezeNotes');
+        const clearButton = document.getElementById('clearButton');
+        const refreezeButton = document.getElementById('refreezeButton');
+
+        // --- Utility Functions ---
+
+        /**
+         * Formats duration in HH:MM format.
+         * @param {number} hours - total hours.
+         * @returns {string} Formatted duration.
+         */
+        function formatDuration(hours) {
+            if (typeof hours !== 'number' || isNaN(hours)) return '-';
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        }
+
+        /**
+         * Parses duration string "HH:MM" into hours.
+         * @param {string} durationStr - Duration string (e.g., "48:00").
+         * @returns {number} Total hours.
+         */
+        function parseDurationToHours(durationStr) {
+            if (!durationStr || typeof durationStr !== 'string') return 0;
+            const parts = durationStr.split(':');
+            if (parts.length === 2) {
+                const hours = parseInt(parts[0], 10);
+                const minutes = parseInt(parts[1], 10);
+                if (!isNaN(hours) && !isNaN(minutes)) {
+                    return hours + (minutes / 60);
+                }
+            }
+            return 0;
+        }
+
+        /**
+         * Calculates estimated completion time.
+         * @param {string} startTime - Start date/time string (ISO format or parseable by Date).
+         * @param {number} stdHours - Standard duration in hours.
+         * @returns {string} Formatted estimated completion date/time.
+         */
+        function calculateCompletionTime(startTime, stdHours) {
+            if (!startTime || isNaN(stdHours) || stdHours <= 0) return '-';
+            const startDate = new Date(startTime);
+            if (isNaN(startDate.getTime())) return '-'; // Check for invalid date
+
+            const completionDate = new Date(startDate.getTime() + stdHours * 60 * 60 * 1000);
+            return formatDate(completionDate);
+        }
+
+        /**
+         * Formats a Date object into "DD/MM/YYYY HH:mm" string.
+         * @param {Date} dateObj - The Date object to format.
+         * @returns {string} Formatted date/time string.
+         */
+        function formatDate(dateObj) {
+            if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+                return '-';
+            }
+            const options = {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            };
+            return dateObj.toLocaleString('th-TH', options);
+        }
+
+        /**
+         * Converts formatted date string "DD/MM/YYYY HH:mm" to Date object.
+         * @param {string} formattedString
+         * @returns {Date}
+         */
+        function parseFormattedDate(formattedString) {
+            if (!formattedString || formattedString === '-') return null;
+            const [datePart, timePart] = formattedString.split(' ');
+            const [day, month, year] = datePart.split('/').map(Number);
+            const [hours, minutes] = timePart.split(':').map(Number);
+            // Month is 0-indexed in JavaScript Date object
+            return new Date(year, month - 1, day, hours, minutes);
+        }
+
+        // --- Google Apps Script Communication ---
+
+        /**
+         * Sends a request to Google Apps Script using JSONP.
+         * @param {string} command - The command for the Apps Script (e.g., 'login', 'getFreezers').
+         * @param {object} data - Data payload for the command.
+         * @param {function} callback - Callback function to handle the response.
+         */
+        function sendRequestToGS(command, data, callback) {
+            const callbackName = 'jsonpCallback_' + Date.now();
+            window[callbackName] = (response) => {
+                callback(response);
+                delete window[callbackName]; // Clean up the global callback
+                script.remove(); // Remove the script tag
+            };
+
+            const params = new URLSearchParams({
+                callback: callbackName,
+                command: command,
+                ...data
+            });
+
+            const script = document.createElement('script');
+            script.src = `${GOOGLE_APP_SCRIPT_URL}?${params.toString()}`;
+            document.head.appendChild(script);
+        }
+
+        /**
+         * Fetches initial data for the app.
+         */
+        async function fetchInitialData() {
+            try {
+                // Fetch users for login
+                await new Promise(resolve => {
+                    sendRequestToGS('getUsers', {}, (response) => {
+                        if (response.success) {
+                            allUsers = response.data;
+                            // console.log('Fetched users:', allUsers);
+                        } else {
+                            console.error('Failed to fetch users:', response.message);
+                        }
+                        resolve();
+                    });
+                });
+
+                // Fetch freezers
+                await new Promise(resolve => {
+                    sendRequestToGS('getFreezers', {}, (response) => {
+                        if (response.success) {
+                            freezers = response.data.map(f => ({
+                                ...f,
+                                stdHours: parseDurationToHours(f.stdTime) // Convert STD.time to hours
+                            }));
+                            // console.log('Fetched freezers:', freezers);
+                        } else {
+                            console.error('Failed to fetch freezers:', response.message);
+                        }
+                        resolve();
+                    });
+                });
+
+                // Fetch freeze history
+                await new Promise(resolve => {
+                    sendRequestToGS('getFreezeHistory', {}, (response) => {
+                        if (response.success) {
+                            freezeHistory = response.data;
+                            // console.log('Fetched freeze history:', freezeHistory);
+                        } else {
+                            console.error('Failed to fetch freeze history:', response.message);
+                        }
+                        resolve();
+                    });
+                });
+            } catch (error) {
+                console.error("Error fetching initial data:", error);
+            }
+        }
+
+
+        // --- Login/Logout Logic ---
+
+        loginButton.addEventListener('click', handleLogin);
+        loginEmailInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
+        loginStaffCodeInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
+        logoutButton.addEventListener('click', handleLogout);
+
+        async function handleLogin() {
+            const email = loginEmailInput.value.trim();
+            const staffCode = loginStaffCodeInput.value.trim();
+            loginMessage.textContent = ''; // Clear previous messages
+
+            if (!email || !staffCode) {
+                loginMessage.textContent = 'กรุณากรอกอีเมลและรหัสพนักงาน';
+                return;
+            }
+
+            // Simulate login process for now
+            const user = allUsers.find(u => u.Email === email && u.StaffCode === staffCode);
+
+            if (user) {
+                currentUser = { email: user.Email, name: user.Name, staffCode: user.StaffCode };
+                loggedInUserSpan.textContent = `ผู้ใช้งาน: ${currentUser.name}`;
+                loginModal.style.display = 'none';
+                appContainer.classList.remove('hidden');
+                showPage('home'); // Go to home page after login
+
+                // Log login attempt to Google Sheet
+                sendRequestToGS('logLogin', {
+                    email: currentUser.email,
+                    staffCode: currentUser.staffCode,
+                    timestamp: new Date().toISOString()
+                }, (response) => {
+                    if (!response.success) {
+                        console.error('Failed to log login:', response.message);
+                    }
+                });
+            } else {
+                loginMessage.textContent = 'อีเมลหรือรหัสพนักงานไม่ถูกต้อง';
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            loginEmailInput.value = '';
+            loginStaffCodeInput.value = '';
+            appContainer.classList.add('hidden');
+            loginModal.style.display = 'flex'; // Show login modal again
+        }
+
+        // --- Navigation Logic ---
+        navHomeButton.addEventListener('click', () => showPage('home'));
+        navDailyLogButton.addEventListener('click', () => showPage('dailyLog'));
+        navOverviewButton.addEventListener('click', () => showPage('overview'));
+
+        function showPage(pageName) {
+            appContent.innerHTML = ''; // Clear current content
+            // Remove active class from all nav buttons
+            document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('bg-blue-100', 'text-blue-700'));
+
+            // Add active class to the selected nav button
+            if (pageName === 'home') {
+                navHomeButton.classList.add('bg-blue-100', 'text-blue-700');
+                renderHomePage();
+            } else if (pageName === 'dailyLog') {
+                navDailyLogButton.classList.add('bg-blue-100', 'text-blue-700');
+                renderDailyLogPage();
+            } else if (pageName === 'overview') {
+                navOverviewButton.classList.add('bg-blue-100', 'text-blue-700');
+                renderOverviewPage();
+            }
+        }
+
+        // --- Home Page Rendering ---
+        function renderHomePage() {
+            appContent.innerHTML = `
+                <h2 class="text-3xl font-bold mb-6 text-gray-800">Dashboard</h2>
+
+                <!-- Dashboard Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-green-600 text-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                        <div>
+                            <p class="text-lg">✅ พร้อมใช้งาน</p>
+                            <p id="dashboardReady" class="text-4xl font-bold">0</p>
+                        </div>
+                        <!-- Icon Placeholder -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                    </div>
+                    <div class="bg-blue-600 text-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                        <div>
+                            <p class="text-lg">❄️ กำลัง Freeze</p>
+                            <p id="dashboardFreezing" class="text-4xl font-bold">0</p>
+                        </div>
+                        <!-- Icon Placeholder -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-snowflake"><path d="M2 12h20"/><path d="m14 2-2 6-2-6"/><path d="m14 22-2-6-2 6"/><path d="m10 4-4 4 4 4 4-4-4-4"/><path d="M10 20l-4-4 4-4 4 4-4 4"/><path d="M8 12l-4 4 4 4 4-4-4-4"/><path d="M16 12l4 4-4 4-4-4 4-4"/></svg>
+                    </div>
+                    <div class="bg-red-600 text-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                        <div>
+                            <p class="text-lg">🛑 มีสินค้าในตู้</p>
+                            <p id="dashboardItems" class="text-4xl font-bold">0</p>
+                        </div>
+                        <!-- Icon Placeholder -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-check"><path d="M16.47 11.25H9.53a2 2 0 0 0-1.89 2.66l.82 2.87A2 2 0 0 0 10.46 19H13.5a2 2 0 0 0 1.89-2.22l-.82-2.87a2 2 0 0 0-1.89-2.66Z"/><path d="m20 7-9 9-5-5"/><path d="M2 10V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4"/><path d="M12 19v3"/><path d="M12 2v2"/></svg>
+                    </div>
+                    <div class="bg-gray-600 text-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                        <div>
+                            <p class="text-lg">ทั้งหมด</p>
+                            <p id="dashboardTotal" class="text-4xl font-bold">0</p>
+                        </div>
+                        <!-- Icon Placeholder -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-box"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M21 12H3"/><path d="M12 3v18"/></svg>
+                    </div>
+                </div>
+
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">รายชื่อตู้แช่แข็ง</h2>
+                <div class="mb-4">
+                    <input type="text" id="freezerSearch" placeholder="ค้นหาตู้แช่แข็ง..." class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อตู้</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รายละเอียด</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลามาตรฐาน</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">คาดว่าจะเสร็จ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="freezerTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Freezer rows will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">ตู้ที่ใกล้ถึงกำหนด</h2>
+                <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-3">วันนี้</h3>
+                    <div id="todaySchedule" class="space-y-2 text-gray-700">
+                        <!-- Today's schedule will be loaded here -->
+                    </div>
+                    <h3 class="text-xl font-semibold mt-6 mb-3">พรุ่งนี้</h3>
+                    <div id="tomorrowSchedule" class="space-y-2 text-gray-700">
+                        <!-- Tomorrow's schedule will be loaded here -->
+                    </div>
+                </div>
+
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">ประวัติการฟรีซ</h2>
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID ตู้</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลาที่บันทึก</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">กิจกรรม</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meter เริ่ม</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meter สิ้นสุด</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">พนักงาน</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลาฟรีซรวม (ชม.)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="freezeHistoryTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- History rows will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            populateDashboard();
+            renderFreezerList();
+            renderUpcomingSchedule();
+            renderFreezeHistory();
+
+            document.getElementById('freezerSearch').addEventListener('input', renderFreezerList);
+        }
+
+        function populateDashboard() {
+            const readyCount = freezers.filter(f => f.status === 'พร้อมใช้งาน').length;
+            const freezingCount = freezers.filter(f => f.status.includes('Freeze')).length;
+            const itemsCount = freezers.filter(f => f.status === 'มีสินค้าในตู้').length;
+            const totalCount = freezers.length;
+
+            document.getElementById('dashboardReady').textContent = readyCount;
+            document.getElementById('dashboardFreezing').textContent = freezingCount;
+            document.getElementById('dashboardItems').textContent = itemsCount;
+            document.getElementById('dashboardTotal').textContent = totalCount;
+        }
+
+        function renderFreezerList() {
+            const tbody = document.getElementById('freezerTableBody');
+            tbody.innerHTML = '';
+            const searchTerm = document.getElementById('freezerSearch').value.toLowerCase();
+
+            const filteredFreezers = freezers.filter(f =>
+                f.name.toLowerCase().includes(searchTerm) ||
+                f.id.toLowerCase().includes(searchTerm) ||
+                f.details.toLowerCase().includes(searchTerm)
+            );
+
+            filteredFreezers.forEach(freezer => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-gray-50';
+
+                const statusColorClass = {
+                    'พร้อมใช้งาน': 'bg-green-100 text-green-800',
+                    'กำลัง Freeze': 'bg-blue-100 text-blue-800',
+                    'กำลัง Freeze เกินเวลา': 'bg-red-100 text-red-800 blinking-text',
+                    'มีสินค้าในตู้': 'bg-red-100 text-red-800'
+                };
+                const displayStatus = freezer.status.includes('เกินเวลา') ? 'กำลัง Freeze เกินเวลา' : freezer.status;
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${freezer.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${freezer.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${freezer.details}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatDuration(freezer.stdTime)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColorClass[displayStatus] || 'bg-gray-100 text-gray-800'}">
+                            ${displayStatus}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${freezer.estimatedCompletion || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="showFreezerHistory('${freezer.id}')" class="text-indigo-600 hover:text-indigo-900 p-2 rounded-md hover:bg-gray-100 transition duration-300">ประวัติการฟรีซ</button>
+                    </td>
+                `;
+            });
+        }
+
+        function renderUpcomingSchedule() {
+            const todayScheduleDiv = document.getElementById('todaySchedule');
+            const tomorrowScheduleDiv = document.getElementById('tomorrowSchedule');
+            todayScheduleDiv.innerHTML = '';
+            tomorrowScheduleDiv.innerHTML = '';
+
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+            const dayAfterTomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+
+            const upcomingFreezers = freezers.filter(f =>
+                f.status.includes('Freeze') && f.estimatedCompletion && f.estimatedCompletion !== '-'
+            ).map(f => ({
+                ...f,
+                completionDateObj: parseFormattedDate(f.estimatedCompletion)
+            })).filter(f => f.completionDateObj); // Filter out freezers with invalid completion dates
+
+            const todayEvents = upcomingFreezers.filter(f =>
+                f.completionDateObj >= today && f.completionDateObj < tomorrow
+            ).sort((a, b) => a.completionDateObj - b.completionDateObj);
+
+            const tomorrowEvents = upcomingFreezers.filter(f =>
+                f.completionDateObj >= tomorrow && f.completionDateObj < dayAfterTomorrow
+            ).sort((a, b) => a.completionDateObj - b.completionDateObj);
+
+            if (todayEvents.length === 0) {
+                todayScheduleDiv.innerHTML = '<p class="text-gray-500">ไม่มีตู้ที่ใกล้ถึงกำหนดในวันนี้</p>';
+            } else {
+                todayEvents.forEach(f => {
+                    todayScheduleDiv.innerHTML += `
+                        <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg shadow-sm">
+                            <div>
+                                <p class="font-semibold">${f.name}</p>
+                                <p class="text-sm text-gray-600">${f.details}</p>
+                            </div>
+                            <span class="text-lg font-bold">${f.completionDateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            if (tomorrowEvents.length === 0) {
+                tomorrowScheduleDiv.innerHTML = '<p class="text-gray-500">ไม่มีตู้ที่ใกล้ถึงกำหนดในพรุ่งนี้</p>';
+            } else {
+                tomorrowEvents.forEach(f => {
+                    tomorrowScheduleDiv.innerHTML += `
+                        <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg shadow-sm">
+                            <div>
+                                <p class="font-semibold">${f.name}</p>
+                                <p class="text-sm text-gray-600">${f.details}</p>
+                            </div>
+                            <span class="text-lg font-bold">${f.completionDateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        // Global function for "ประวัติการฟรีซ" button in the table
+        window.showFreezerHistory = function(freezerId) {
+            // Filter freezeHistory by freezerId and display it in a modal or separate section
+            // For simplicity, we'll just filter the main history table on the home page for now.
+            // In a more complex app, this might open a new detailed history view.
+            renderFreezeHistory(freezerId);
+            // Scroll to the history section
+            document.getElementById('freezeHistoryTableBody').scrollIntoView({ behavior: 'smooth' });
+        }
+
+
+        function renderFreezeHistory(filterFreezerId = null) {
+            const tbody = document.getElementById('freezeHistoryTableBody');
+            tbody.innerHTML = '';
+
+            const filteredHistory = filterFreezerId
+                ? freezeHistory.filter(h => h.FreezerID === filterFreezerId)
+                : freezeHistory;
+
+            if (filteredHistory.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">ไม่มีประวัติการฟรีซ${filterFreezerId ? `สำหรับตู้ ${filterFreezerId}` : ''}</td></tr>`;
+                return;
+            }
+
+            // Sort history by Timestamp descending
+            filteredHistory.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+
+            filteredHistory.forEach(entry => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-gray-50';
+
+                // Calculate total freeze time for this segment if it's a 'Stop' event
+                let totalTime = '-';
+                if (entry.Event === 'Stop') {
+                    const startEntry = freezeHistory.find(h =>
+                        h.FreezerID === entry.FreezerID &&
+                        h.Event === 'Start' &&
+                        new Date(h.Timestamp).getTime() < new Date(entry.Timestamp).getTime() &&
+                        (h.MeterEnd === '' || h.MeterEnd === undefined) // Find the corresponding start that hasn't been stopped yet
+                    );
+                    if (startEntry) {
+                        const startTime = new Date(startEntry.Timestamp).getTime();
+                        const stopTime = new Date(entry.Timestamp).getTime();
+                        const durationMs = stopTime - startTime;
+                        totalTime = (durationMs / (1000 * 60 * 60)).toFixed(2); // In hours
+                    }
+                } else if (entry.Event === 'Refreeze') {
+                    // For Refreeze, the GS will calculate total time with previous segments.
+                    // Here, we just display what comes from the sheet or '-'.
+                    totalTime = entry.TotalFreezeTime || '-';
+                }
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${entry.FreezerID}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatDate(new Date(entry.Timestamp))}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${entry.Event}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${entry.MeterStart || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${entry.MeterEnd || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${entry.Employee || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${entry.TotalFreezeTime || '-'}</td>
+                `;
+            });
+        }
+
+
+        // --- Daily Log Page Rendering ---
+        function renderDailyLogPage() {
+            appContent.innerHTML = `
+                <h2 class="text-3xl font-bold mb-6 text-gray-800">บันทึกฟรีซประจำวัน ❄️</h2>
+                <div id="freezerCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Freezer cards will be loaded here -->
+                </div>
+            `;
+            renderFreezerCards();
+        }
+
+        function renderFreezerCards() {
+            const container = document.getElementById('freezerCardsContainer');
+            container.innerHTML = '';
+
+            freezers.forEach(freezer => {
+                const statusColorClass = {
+                    'พร้อมใช้งาน': 'bg-green-600',
+                    'กำลัง Freeze': 'bg-blue-600',
+                    'กำลัง Freeze เกินเวลา': 'bg-red-600 blinking-text',
+                    'มีสินค้าในตู้': 'bg-red-600'
+                };
+                const displayStatus = freezer.status.includes('เกินเวลา') ? 'กำลัง Freeze เกินเวลา' : freezer.status;
+                const statusTextClass = statusColorClass[displayStatus] || 'bg-gray-600';
+
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-xl shadow-md p-6 cursor-pointer hover:shadow-lg transition duration-300 border-l-8 ${statusColorClass[displayStatus].replace('bg-', 'border-')} flex flex-col justify-between`;
+                card.innerHTML = `
+                    <div>
+                        <h3 class="text-xl font-bold mb-2 text-gray-800">${freezer.name} - ${freezer.id}</h3>
+                        <p class="text-gray-600 text-sm mb-2">${freezer.details}</p>
+                        <p class="text-gray-700 mb-1"><span class="font-semibold">STD.time:</span> ${formatDuration(freezer.stdTime)} Hours</p>
+                        <p class="text-gray-700 mb-3"><span class="font-semibold">คาดว่าจะเสร็จ:</span> ${freezer.estimatedCompletion || '-'}</p>
+                    </div>
+                    <div class="flex justify-end">
+                        <span class="px-3 py-1 rounded-full text-white font-bold text-sm ${statusTextClass}">${displayStatus}</span>
+                    </div>
+                `;
+                card.addEventListener('click', () => showActionModal(freezer.id, freezer.status));
+                container.appendChild(card);
+            });
+        }
+
+        function showActionModal(freezerId, status) {
+            const freezer = freezers.find(f => f.id === freezerId);
+            if (!freezer) {
+                modalMessage.textContent = 'ไม่พบข้อมูลตู้แช่แข็ง';
+                return;
+            }
+
+            // Reset modal state
+            readyToUseFields.classList.add('hidden');
+            freezingFields.classList.add('hidden');
+            itemsInFreezerFields.classList.add('hidden');
+            confirmOperationButton.classList.add('hidden');
+            refreezeNotesContainer.classList.add('hidden');
+            modalMessage.textContent = '';
+            refreezeNotes.value = ''; // Clear notes when opening
+
+            modalFreezerId.value = freezer.id;
+            modalFreezerStatus.value = status; // Store current status
+
+            if (status === 'พร้อมใช้งาน') {
+                modalTitle.textContent = `เริ่มฟรีซตู้: ${freezer.name} (${freezer.id})`;
+                readyToUseFields.classList.remove('hidden');
+                readyFreezeDate.value = formatDate(new Date());
+                readyEmployee.value = currentUser ? currentUser.name : 'ไม่ระบุพนักงาน';
+                readyEstimatedCompletion.value = calculateCompletionTime(new Date().toISOString(), freezer.stdHours);
+                startButton.onclick = () => {
+                    const meterStart = readyMeterStart.value;
+                    if (!meterStart) {
+                        modalMessage.textContent = 'กรุณากรอก Meter เริ่ม';
+                        return;
+                    }
+                    if (isNaN(meterStart) || parseFloat(meterStart) < 0) {
+                        modalMessage.textContent = 'Meter เริ่ม ต้องเป็นตัวเลขบวก';
+                        return;
+                    }
+                    // Show confirm button after 'start'
+                    confirmOperationButton.onclick = () => confirmStartFreeze(freezer);
+                    confirmOperationButton.classList.remove('hidden');
+                    modalMessage.textContent = 'กด "ยืนยันการทำงาน" เพื่อเริ่มฟรีซ';
+                };
+            } else if (status.includes('Freeze')) { // Covers "กำลัง Freeze" and "กำลัง Freeze เกินเวลา"
+                modalTitle.textContent = `หยุดฟรีซตู้: ${freezer.name} (${freezer.id})`;
+                freezingFields.classList.remove('hidden');
+
+                const lastStartEntry = freezeHistory
+                    .filter(h => h.FreezerID === freezer.id && h.Event === 'Start')
+                    .sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp))[0]; // Get the latest start
+                
+                freezingFreezeDate.value = lastStartEntry ? formatDate(new Date(lastStartEntry.Timestamp)) : '-';
+                freezingMeterStart.value = lastStartEntry ? lastStartEntry.MeterStart : '-';
+                freezingEmployee.value = currentUser ? currentUser.name : 'ไม่ระบุพนักงาน';
+                freezingEstimatedCompletion.value = freezer.estimatedCompletion || '-';
+
+                stopButton.onclick = () => {
+                    const meterEnd = freezingMeterEnd.value;
+                    if (!meterEnd) {
+                        modalMessage.textContent = 'กรุณากรอก Meter สิ้นสุด';
+                        return;
+                    }
+                    if (isNaN(meterEnd) || parseFloat(meterEnd) < 0) {
+                        modalMessage.textContent = 'Meter สิ้นสุด ต้องเป็นตัวเลขบวก';
+                        return;
+                    }
+                    // Show confirm button after 'stop'
+                    confirmOperationButton.onclick = () => confirmStopFreeze(freezer);
+                    confirmOperationButton.classList.remove('hidden');
+                    modalMessage.textContent = 'กด "ยืนยันการทำงาน" เพื่อหยุดเครื่อง';
+                };
+            } else if (status === 'มีสินค้าในตู้') {
+                modalTitle.textContent = `จัดการตู้: ${freezer.name} (${freezer.id})`;
+                itemsInFreezerFields.classList.remove('hidden');
+
+                const lastStopEntry = freezeHistory
+                    .filter(h => h.FreezerID === freezer.id && h.Event === 'Stop')
+                    .sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp))[0]; // Get the latest stop
+
+                itemsFreezeDate.value = lastStopEntry ? formatDate(new Date(lastStopEntry.Timestamp)) : '-';
+                itemsMeterStart.value = lastStopEntry ? lastStopEntry.MeterStart : '-';
+                itemsMeterEnd.value = lastStopEntry ? lastStopEntry.MeterEnd : '-';
+                itemsEstimatedCompletion.value = freezer.estimatedCompletion || '-'; // This might be '-' if it stopped
+                itemsEmployee.value = currentUser ? currentUser.name : 'ไม่ระบุพนักงาน';
+
+                clearButton.onclick = () => {
+                    confirmOperationButton.onclick = () => confirmClearFreezer(freezer);
+                    confirmOperationButton.classList.remove('hidden');
+                    refreezeNotesContainer.classList.add('hidden'); // Hide notes for clear
+                    modalMessage.textContent = 'กด "ยืนยันการทำงาน" เพื่อเคลียร์ตู้';
+                };
+                refreezeButton.onclick = () => {
+                    confirmOperationButton.onclick = () => confirmRefreeze(freezer);
+                    confirmOperationButton.classList.remove('hidden');
+                    refreezeNotesContainer.classList.remove('hidden'); // Show notes for refreeze
+                    modalMessage.textContent = 'กด "ยืนยันการทำงาน" เพื่อรีฟรีซ';
+                };
+            }
+
+            actionModal.style.display = 'flex';
+        }
+
+        closeModalButton.addEventListener('click', () => {
+            actionModal.style.display = 'none';
+        });
+
+        // Close modal if clicked outside of content
+        window.addEventListener('click', (event) => {
+            if (event.target == actionModal) {
+                actionModal.style.display = 'none';
+            }
+        });
+
+        // --- Action Confirmation Functions ---
+
+        async function confirmStartFreeze(freezer) {
+            modalMessage.textContent = 'กำลังบันทึกข้อมูล...';
+            const timestamp = new Date().toISOString();
+            const meterStart = parseFloat(readyMeterStart.value);
+            const employee = readyEmployee.value;
+            const estimatedCompletion = readyEstimatedCompletion.value;
+
+            sendRequestToGS('recordFreezeLog', {
+                freezerId: freezer.id,
+                event: 'Start',
+                timestamp: timestamp,
+                meterStart: meterStart,
+                meterEnd: '', // No end meter at start
+                employee: employee,
+                estimatedCompletion: estimatedCompletion,
+                notes: '',
+                totalFreezeTime: '' // Not applicable for start
+            }, async (response) => {
+                if (response.success) {
+                    // Update local freezer status and re-render
+                    const updatedFreezers = freezers.map(f =>
+                        f.id === freezer.id ? { ...f, status: 'กำลัง Freeze', estimatedCompletion: estimatedCompletion, currentStartTimestamp: timestamp, currentMeter: meterStart } : f
+                    );
+                    freezers = updatedFreezers;
+                    await fetchInitialData(); // Re-fetch all data to ensure consistency
+                    renderFreezerCards(); // Re-render the cards on Daily Log page
+                    populateDashboard(); // Update dashboard
+                    actionModal.style.display = 'none';
+                    modalMessage.textContent = '';
+                } else {
+                    modalMessage.textContent = `เกิดข้อผิดพลาด: ${response.message}`;
+                    console.error('Failed to record start freeze:', response.message);
+                }
+            });
+        }
+
+        async function confirmStopFreeze(freezer) {
+            modalMessage.textContent = 'กำลังบันทึกข้อมูล...';
+            const timestamp = new Date().toISOString();
+            const meterEnd = parseFloat(freezingMeterEnd.value);
+            const employee = freezingEmployee.value;
+
+            // Find the corresponding start entry to calculate duration
+            const lastStartEntry = freezeHistory
+                .filter(h => h.FreezerID === freezer.id && h.Event === 'Start')
+                .sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp))[0];
+
+            let segmentDurationHours = 0;
+            if (lastStartEntry && lastStartEntry.Timestamp) {
+                const startTime = new Date(lastStartEntry.Timestamp).getTime();
+                const stopTime = new Date(timestamp).getTime();
+                segmentDurationHours = (stopTime - startTime) / (1000 * 60 * 60);
+            }
+
+            sendRequestToGS('recordFreezeLog', {
+                freezerId: freezer.id,
+                event: 'Stop',
+                timestamp: timestamp,
+                meterStart: freezingMeterStart.value, // This is from the start event
+                meterEnd: meterEnd,
+                employee: employee,
+                estimatedCompletion: freezer.estimatedCompletion || '-',
+                notes: '',
+                totalFreezeTime: segmentDurationHours.toFixed(2) // Total freeze time for this segment
+            }, async (response) => {
+                if (response.success) {
+                    // Update local freezer status and re-render
+                    const updatedFreezers = freezers.map(f =>
+                        f.id === freezer.id ? { ...f, status: 'มีสินค้าในตู้', currentMeter: meterEnd } : f
+                    );
+                    freezers = updatedFreezers;
+                    await fetchInitialData(); // Re-fetch all data to ensure consistency
+                    renderFreezerCards();
+                    populateDashboard();
+                    actionModal.style.display = 'none';
+                    modalMessage.textContent = '';
+                } else {
+                    modalMessage.textContent = `เกิดข้อผิดพลาด: ${response.message}`;
+                    console.error('Failed to record stop freeze:', response.message);
+                }
+            });
+        }
+
+        async function confirmClearFreezer(freezer) {
+            modalMessage.textContent = 'กำลังบันทึกข้อมูล...';
+            const timestamp = new Date().toISOString();
+            const employee = itemsEmployee.value;
+
+            sendRequestToGS('recordFreezeLog', {
+                freezerId: freezer.id,
+                event: 'Clear',
+                timestamp: timestamp,
+                meterStart: itemsMeterStart.value, // From last stop
+                meterEnd: itemsMeterEnd.value,   // From last stop
+                employee: employee,
+                estimatedCompletion: '', // Cleared, so no est. completion
+                notes: '',
+                totalFreezeTime: '' // Not relevant for Clear, GS will reset
+            }, async (response) => {
+                if (response.success) {
+                    // Update local freezer status and re-render
+                    const updatedFreezers = freezers.map(f =>
+                        f.id === freezer.id ? { ...f, status: 'พร้อมใช้งาน', estimatedCompletion: '', currentStartTimestamp: '', currentMeter: '' } : f
+                    );
+                    freezers = updatedFreezers;
+                    await fetchInitialData(); // Re-fetch all data to ensure consistency
+                    renderFreezerCards();
+                    populateDashboard();
+                    actionModal.style.display = 'none';
+                    modalMessage.textContent = '';
+                } else {
+                    modalMessage.textContent = `เกิดข้อผิดพลาด: ${response.message}`;
+                    console.error('Failed to record clear freezer:', response.message);
+                }
+            });
+        }
+
+        async function confirmRefreeze(freezer) {
+            modalMessage.textContent = 'กำลังบันทึกข้อมูล...';
+            const timestamp = new Date().toISOString();
+            const employee = itemsEmployee.value;
+            const notes = refreezeNotes.value.trim();
+
+            sendRequestToGS('recordFreezeLog', {
+                freezerId: freezer.id,
+                event: 'Refreeze',
+                timestamp: timestamp,
+                meterStart: itemsMeterEnd.value, // Meter ends from previous cycle becomes start for refreeze
+                meterEnd: '', // No end meter for refreeze start
+                employee: employee,
+                estimatedCompletion: '', // Re-freeze doesn't have a direct estimated completion initially
+                notes: notes,
+                totalFreezeTime: '' // GS will calculate total time
+            }, async (response) => {
+                if (response.success) {
+                    // Update local freezer status and re-render
+                    const updatedFreezers = freezers.map(f =>
+                        f.id === freezer.id ? { ...f, status: 'กำลัง Freeze', estimatedCompletion: '', currentStartTimestamp: timestamp, currentMeter: itemsMeterEnd.value } : f
+                    );
+                    freezers = updatedFreezers;
+                    await fetchInitialData(); // Re-fetch all data to ensure consistency
+                    renderFreezerCards();
+                    populateDashboard();
+                    actionModal.style.display = 'none';
+                    modalMessage.textContent = '';
+                } else {
+                    modalMessage.textContent = `เกิดข้อผิดพลาด: ${response.message}`;
+                    console.error('Failed to record refreeze:', response.message);
+                }
+            });
+        }
+
+
+        // --- Overview Page Rendering ---
+        let avgFreezeTimeChart, usageStatsChart, efficiencyChart;
+
+        function renderOverviewPage() {
+            appContent.innerHTML = `
+                <h2 class="text-3xl font-bold mb-6 text-gray-800">สรุปภาพรวม 📊</h2>
+                <div class="bg-white rounded-xl shadow-md p-6 mb-8 flex items-center space-x-4">
+                    <div>
+                        <label for="filterMonth" class="block text-gray-700 font-semibold mb-1">เดือน</label>
+                        <select id="filterMonth" class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="1">มกราคม</option>
+                            <option value="2">กุมภาพันุ่ม</option>
+                            <option value="3">มีนาคม</option>
+                            <option value="4">เมษายน</option>
+                            <option value="5">พฤษภาคม</option>
+                            <option value="6">มิถุนายน</option>
+                            <option value="7">กรกฎาคม</option>
+                            <option value="8">สิงหาคม</option>
+                            <option value="9">กันยายน</option>
+                            <option value="10">ตุลาคม</option>
+                            <option value="11">พฤศจิกายน</option>
+                            <option value="12">ธันวาคม</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filterYear" class="block text-gray-700 font-semibold mb-1">ปี</label>
+                        <select id="filterYear" class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <!-- Years will be dynamically populated -->
+                        </select>
+                    </div>
+                    <button id="applyFilterButton" class="self-end py-2 px-4 rounded-lg text-white font-semibold bg-blue-600 hover:bg-blue-700 transition duration-300 ease-in-out">
+                        ค้นหา
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-800">เวลาฟรีซเฉลี่ยเทียบกับเวลามาตรฐาน</h3>
+                        <div class="chart-container">
+                            <canvas id="avgFreezeTimeChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-800">สถิติการใช้งานของแต่ละตู้</h3>
+                        <div class="chart-container">
+                            <canvas id="usageStatsChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6 lg:col-span-2">
+                        <h3 class="text-xl font-bold mb-4 text-gray-800">ประสิทธิภาพเฉลี่ยเมื่อเทียบ STD.</h3>
+                        <div class="chart-container">
+                            <canvas id="efficiencyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            populateYearFilter();
+            const currentMonth = new Date().getMonth() + 1;
+            const currentYear = new Date().getFullYear();
+            document.getElementById('filterMonth').value = currentMonth;
+            document.getElementById('filterYear').value = currentYear;
+
+            document.getElementById('applyFilterButton').addEventListener('click', fetchAndRenderCharts);
+            fetchAndRenderCharts(); // Initial chart load
+        }
+
+        function populateYearFilter() {
+            const yearSelect = document.getElementById('filterYear');
+            const currentYear = new Date().getFullYear();
+            for (let i = currentYear - 5; i <= currentYear + 5; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i;
+                yearSelect.appendChild(option);
+            }
+        }
+
+        async function fetchAndRenderCharts() {
+            const month = document.getElementById('filterMonth').value;
+            const year = document.getElementById('filterYear').value;
+
+            sendRequestToGS('getChartData', { month: month, year: year }, (response) => {
+                if (response.success) {
+                    renderCharts(response.data);
+                } else {
+                    console.error('Failed to fetch chart data:', response.message);
+                    alert('ไม่สามารถโหลดข้อมูลกราฟได้: ' + response.message); // Using alert here for simplicity, replace with custom modal
+                }
+            });
+        }
+
+        function renderCharts(chartData) {
+            // Destroy existing charts if they exist
+            for (const chartId in currentChartInstances) {
+                if (currentChartInstances[chartId]) {
+                    currentChartInstances[chartId].destroy();
+                    currentChartInstances[chartId] = null;
+                }
+            }
+
+            const freezerLabels = freezers.map(f => f.name); // Use freezer names as labels
+
+            // Chart 1: Average Freeze Time vs. Standard Time
+            const avgFreezeTimeCtx = document.getElementById('avgFreezeTimeChart').getContext('2d');
+            const avgFreezeTimeConfig = {
+                type: 'bar',
+                data: {
+                    labels: freezerLabels,
+                    datasets: [
+                        {
+                            label: 'เวลามาตรฐาน (ชั่วโมง)',
+                            data: freezerLabels.map(name => {
+                                const freezer = freezers.find(f => f.name === name);
+                                return freezer ? freezer.stdHours : 0;
+                            }),
+                            type: 'line',
+                            borderColor: '#30cfd0',
+                            backgroundColor: 'transparent',
+                            tension: 0.4,
+                            fill: false,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'เวลาฟรีซเฉลี่ย (ชั่วโมง)',
+                            data: freezerLabels.map(name => chartData.avgFreezeTimes[name] || 0),
+                            backgroundColor: '#ff6384',
+                            borderColor: '#ff6384',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'ชั่วโมง'
+                            },
+                            position: 'left'
+                        },
+                         y1: { // Separate Y-axis for bar chart if needed, or use single Y
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'ชั่วโมง'
+                            },
+                            position: 'right', // Place on right to differentiate
+                            grid: {
+                                drawOnChartArea: false, // Only draw grid for left axis
+                            },
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    }
+                }
+            };
+            currentChartInstances.avgFreezeTimeChart = new Chart(avgFreezeTimeCtx, avgFreezeTimeConfig);
+
+            // Chart 2: Usage Statistics
+            const usageStatsCtx = document.getElementById('usageStatsChart').getContext('2d');
+            const usageStatsConfig = {
+                type: 'bar',
+                data: {
+                    labels: freezerLabels,
+                    datasets: [
+                        {
+                            label: 'จำนวนครั้งที่ใช้งาน',
+                            data: freezerLabels.map(name => chartData.usageCounts[name] || 0),
+                            backgroundColor: '#36a2eb',
+                            borderColor: '#36a2eb',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'จำนวนครั้ง'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            };
+            currentChartInstances.usageStatsChart = new Chart(usageStatsCtx, usageStatsConfig);
+
+            // Chart 3: Average Efficiency vs. STD.
+            const efficiencyCtx = document.getElementById('efficiencyChart').getContext('2d');
+            const efficiencyConfig = {
+                type: 'bar',
+                data: {
+                    labels: freezerLabels,
+                    datasets: [
+                        {
+                            label: 'ประสิทธิภาพเทียบ STD. (ชั่วโมง)',
+                            data: freezerLabels.map(name => chartData.efficiency[name] || 0),
+                            backgroundColor: (context) => {
+                                const value = context.raw;
+                                return value > 0 ? '#4bc0c0' : '#ff9f40'; // Positive is better (less time), negative is worse (more time)
+                            },
+                            borderColor: (context) => {
+                                const value = context.raw;
+                                return value > 0 ? '#4bc0c0' : '#ff9f40';
+                            },
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false, // Can be negative
+                            title: {
+                                display: true,
+                                text: 'ชั่วโมง (+ = ดีกว่า STD., - = แย่กว่า STD.)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            };
+            currentChartInstances.efficiencyChart = new Chart(efficiencyCtx, efficiencyConfig);
+        }
+
+        // --- Initialize Application ---
+        async function initializeFreezerApp() {
+            await fetchInitialData();
+            // Check for existing user in local storage or session (simple, not secure)
+            const storedUser = localStorage.getItem('currentUser');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                loggedInUserSpan.textContent = `ผู้ใช้งาน: ${currentUser.name}`;
+                loginModal.style.display = 'none';
+                appContainer.classList.remove('hidden');
+                showPage('home'); // Go to home page
+            } else {
+                loginModal.style.display = 'flex'; // Show login modal
+            }
+
+            // Set up interval for checking freezing freezers status
+            setInterval(checkFreezerStatusForBlinking, 60 * 1000); // Check every minute
+        }
+
+        function checkFreezerStatusForBlinking() {
+            const now = new Date().getTime();
+            freezers = freezers.map(f => {
+                if (f.status === 'กำลัง Freeze' && f.estimatedCompletion && f.estimatedCompletion !== '-') {
+                    const completionTime = parseFormattedDate(f.estimatedCompletion);
+                    if (completionTime && now > completionTime.getTime()) {
+                        return { ...f, status: 'กำลัง Freeze เกินเวลา' };
+                    }
+                } else if (f.status === 'กำลัง Freeze เกินเวลา' && f.estimatedCompletion && f.estimatedCompletion !== '-') {
+                     const completionTime = parseFormattedDate(f.estimatedCompletion);
+                     if (completionTime && now <= completionTime.getTime()) {
+                         // If time somehow goes back or status was wrongly set, revert
+                         return { ...f, status: 'กำลัง Freeze' };
+                     }
+                }
+                return f;
+            });
+            // Re-render relevant parts if status changed
+            if (document.getElementById('freezerCardsContainer')) { // If on Daily Log page
+                renderFreezerCards();
+            }
+            if (document.getElementById('freezerTableBody')) { // If on Home page
+                 renderFreezerList();
+                 populateDashboard();
+                 renderUpcomingSchedule();
+            }
+        }
+
+        // Run initial check on load
+        checkFreezerStatusForBlinking();
+
+    </script>
+</body>
+</html>
